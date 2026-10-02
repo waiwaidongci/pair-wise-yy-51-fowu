@@ -29,9 +29,15 @@ import * as RouteActions from '../store/route.actions'
         <aside class="card">
           <div class="panel-head"><div><h2>区段风险清单</h2><p>已按风险等级排序</p></div><strong [class.risk-high]="selectedRoute !== undefined && selectedRoute.score >= 70">总风险 {{selectedRoute?.score}}</strong></div>
           @for (segment of selectedRoute?.segments || []; track segment.id) {
-            <button class="segment" [class.active]="segment.id === selectedSegmentId" (click)="selectSegment(segment)">
-              <span><b>{{segment.name}}</b><small>{{segment.from}} → {{segment.to}} · {{segment.km}} km · {{segment.speed}}</small><em>{{segment.risks.join(' / ')}}</em></span><strong [class.risk-high]="segment.level==='高'" [class.risk-mid]="segment.level==='中'" [class.risk-low]="segment.level==='低'">{{segment.level}}</strong>
-            </button>
+            <div class="segment" [class.active]="segment.id === selectedSegmentId" (click)="selectSegment(segment)">
+              <span><b>{{segment.name}}</b><small>{{segment.from}} → {{segment.to}} · {{segment.km}} km · {{segment.speed}}</small><em>{{segment.risks.join(' / ')}}</em></span>
+              <span class="seg-side">
+                <select class="level-select" [value]="segment.level" (click)="$event.stopPropagation()" (change)="updateLevel(segment.id, $event)">
+                  <option value="高">高</option><option value="中">中</option><option value="低">低</option>
+                </select>
+                <strong [class.risk-high]="segment.level==='高'" [class.risk-mid]="segment.level==='中'" [class.risk-low]="segment.level==='低'">{{segment.level}}</strong>
+              </span>
+            </div>
           }
           <mat-divider />
           <h3>路径测算</h3><p>实测里程：{{routeLength}} km</p><p>预计运行：{{estimatedTime}}</p><p>限制区段：{{restrictedCount}} 处</p>
@@ -41,7 +47,7 @@ import * as RouteActions from '../store/route.actions'
     </main>
   `,
   styles: [`
-    h2,h3{margin:0 0 10px}.panel-head{display:flex;justify-content:space-between}.segment{width:100%;display:flex;justify-content:space-between;text-align:left;gap:10px;padding:13px;margin:6px 0;border:1px solid #e1e7ef;background:#fff;border-radius:6px;color:inherit;cursor:pointer}.segment.active{border-color:#2563eb;background:#f5f8ff}.segment b,.segment small,.segment em{display:block}.segment small{color:#7a8798;margin:4px 0}.segment em{font-size:12px;color:#475569;font-style:normal}
+    h2,h3{margin:0 0 10px}.panel-head{display:flex;justify-content:space-between}.segment{width:100%;display:flex;justify-content:space-between;text-align:left;gap:10px;padding:13px;margin:6px 0;border:1px solid #e1e7ef;background:#fff;border-radius:6px;color:inherit;cursor:pointer}.segment.active{border-color:#2563eb;background:#f5f8ff}.segment b,.segment small,.segment em{display:block}.segment small{color:#7a8798;margin:4px 0}.segment em{font-size:12px;color:#475569;font-style:normal}.seg-side{display:flex;align-items:center;gap:8px}.level-select{padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:13px}
   `],
 })
 export class RiskMapComponent implements AfterViewInit, OnDestroy {
@@ -71,6 +77,7 @@ export class RiskMapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy() { this.map?.remove() }
   selectRoute(id: string) { this.store.dispatch(RouteActions.selectRoute({ id })) }
   selectSegment(segment: RiskSegment) { this.store.dispatch(RouteActions.selectSegment({ id: segment.id })); this.map?.flyTo({ center: segment.coordinates[0], zoom: 8 }) }
+  updateLevel(id: string, event: Event) { const level = (event.target as HTMLSelectElement).value as '高' | '中' | '低'; this.store.dispatch(RouteActions.updateSegmentLevel({ id, level })) }
   requireAlternative() { this.store.dispatch(RouteActions.createAlternative()) }
   fitRoute() { if (!this.map || !this.selectedRoute) return; const bounds = new LngLatBounds(); this.selectedRoute.segments.flatMap((segment) => segment.coordinates).forEach((point) => bounds.extend(point)); this.map.fitBounds(bounds, { padding: 50 }) }
   refreshLayers() { for (const [id, visible] of Object.entries(this.layers)) { if (this.map?.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none') } }

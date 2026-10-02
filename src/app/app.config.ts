@@ -7,6 +7,8 @@ import { provideStore } from '@ngrx/store'
 import { routes } from './app.routes'
 import { RouteEffects } from './store/route.effects'
 import { routeReducer } from './store/route.reducer'
+import { SyncEffects } from './store/sync.effects'
+import { syncReducer } from './store/sync.reducer'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,7 +16,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(),
-    provideStore({ routes: routeReducer }),
-    provideEffects(RouteEffects),
+    provideStore({ routes: routeReducer, sync: syncReducer }),
+    provideEffects(RouteEffects, SyncEffects),
   ],
 }

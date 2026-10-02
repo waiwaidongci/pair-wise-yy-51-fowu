@@ -8,7 +8,9 @@ import { MatSelectModule } from '@angular/material/select'
 import { MatProgressBarModule } from '@angular/material/progress-bar'
 import { MatDividerModule } from '@angular/material/divider'
 import { RouteState } from '../store/route.reducer'
+import { SyncState } from '../store/sync.reducer'
 import * as RouteActions from '../store/route.actions'
+import * as SyncActions from '../store/sync.actions'
 import type { RoutePackage } from '../types'
 
 @Component({
@@ -17,7 +19,11 @@ import type { RoutePackage } from '../types'
   imports: [CommonModule, MatTableModule, MatButtonModule, MatFormFieldModule, MatSelectModule, MatProgressBarModule, MatDividerModule],
   template: `
     <main class="page">
-      <div class="page-head"><div><p class="eyebrow">运输许可与路径编组</p><h1>危险货物运输路径审批</h1><p>核对货物类别、编组、许可与区段约束，生成可比较的候选路径。</p></div><div><button mat-stroked-button (click)="createAlternative()">生成替代方案</button> <button mat-flat-button color="primary" (click)="refresh()">重新校验</button></div></div>
+      <div class="page-head"><div><p class="eyebrow">运输许可与路径编组</p><h1>危险货物运输路径审批</h1><p>核对货物类别、编组、许可与区段约束，生成可比较的候选路径。</p></div><div class="head-actions"><button mat-stroked-button (click)="createAlternative()">生成替代方案</button> <button mat-stroked-button (click)="simulateRemote()">模拟他人修改区段</button> <button mat-flat-button color="primary" (click)="refresh()">重新校验</button></div></div>
+      @if (sync$ | async; as sync) {
+        @if (!sync.online) { <div class="offline-banner">离线模式：修改将保存在本地，恢复网络后自动合并。{{ sync.drafts.length > 0 ? '（' + sync.drafts.length + ' 项草稿待同步）' : '' }}</div> }
+        @if (sync.error) { <div class="error-banner">同步失败：{{ sync.error }}。<a (click)="retryAll()">点击重试</a></div> }
+      }
       <div class="grid-4">
         <article class="card metric"><span>待审批路径</span><strong>{{ (state$ | async)?.routes?.length || 0 }}</strong><small>今日新增 2 条</small></article>
         <article class="card metric"><span>高风险区段</span><strong class="risk-high">{{ highRiskCount }}</strong><small>需安全与应急会签</small></article>
@@ -52,12 +58,13 @@ import type { RoutePackage } from '../types'
     </main>
   `,
   styles: [`
-    h2,h3{margin:0 0 12px}.table-wrap{overflow:auto}.block{display:block;color:#7a8798;margin-top:3px}.selected-row{background:#eff6ff}.rule{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #edf0f5}.rule span{display:block;color:#7a8798;font-size:12px;margin-top:4px}.rule.active{padding-left:10px;border-left:3px solid #2563eb}.rule strong{font-size:12px}.toolbar{margin-bottom:10px}.toolbar mat-form-field{width:160px}
+    h2,h3{margin:0 0 12px}.table-wrap{overflow:auto}.block{display:block;color:#7a8798;margin-top:3px}.selected-row{background:#eff6ff}.rule{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #edf0f5}.rule span{display:block;color:#7a8798;font-size:12px;margin-top:4px}.rule.active{padding-left:10px;border-left:3px solid #2563eb}.rule strong{font-size:12px}.toolbar{margin-bottom:10px}.toolbar mat-form-field{width:160px}.head-actions{display:flex;gap:8px;flex-wrap:wrap}.offline-banner{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:14px}.error-banner{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:14px}.error-banner a{color:#2563eb;cursor:pointer;text-decoration:underline}
   `],
 })
 export class WorkspaceComponent implements OnInit {
-  private readonly store = inject(Store<{ routes: RouteState }>)
+  private readonly store = inject(Store<{ routes: RouteState; sync: SyncState }>)
   readonly state$ = this.store.select('routes')
+  readonly sync$ = this.store.select('sync')
   readonly columns = ['id', 'cargo', 'route', 'permission', 'score', 'action']
   selectedId = ''
   highRiskCount = 0
@@ -67,4 +74,6 @@ export class WorkspaceComponent implements OnInit {
   refresh() { this.store.dispatch(RouteActions.loadRoutes()) }
   select(row: RoutePackage) { this.store.dispatch(RouteActions.selectRoute({ id: row.id })) }
   createAlternative() { this.store.dispatch(RouteActions.createAlternative()) }
+  simulateRemote() { this.store.dispatch(SyncActions.simulateRemoteEdit()) }
+  retryAll() { this.store.dispatch(SyncActions.syncNow()) }
 }
